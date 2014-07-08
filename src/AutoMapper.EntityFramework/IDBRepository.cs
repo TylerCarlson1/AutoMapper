@@ -5,10 +5,29 @@ using System.Linq;
 using System.Linq.Expressions;
 using AutoMapper.EquivilencyExpression;
 using AutoMapper.Mappers;
+using AutoMapper.QueryableExtensions;
 
 namespace AutoMapper
 {
-    public class DBRepository<TDatabase> 
+    public interface IDBRepository
+    {
+        void Save<T,TI>(object value) 
+            where T : class
+            where TI : class, T;
+
+        void Delete<T>(object value)
+            where T : class;
+
+        TDTO GetSingle<TDTO, T>(Func<IQueryable<T>, T> func)
+            where T : class
+            where TDTO : class;
+
+        IEnumerable<TDTO> GetMany<TDTO, T>(Func<IQueryable<T>, IQueryable<T>> func)
+            where T : class
+            where TDTO : class;
+    }
+
+    public class DBRepository<TDatabase> : IDBRepository
         where TDatabase:DbContext, new()
     {
         static DBRepository()
@@ -55,14 +74,13 @@ namespace AutoMapper
             }
         }
 
-        public TDTO GetSingle<T,TDTO>(Expression<Func<TDTO,bool>> equivExpr)
+        public TDTO GetSingle<TDTO, T>(Func<IQueryable<T>, T> func)
             where T : class
             where TDTO : class
         {
             using (var db = new TDatabase())
             {
-                var equivExpr2 = Mapper.Map(equivExpr, typeof(Expression<Func<TDTO, bool>>), typeof(Expression<Func<T, bool>>)) as Expression<Func<T, bool>>;
-                var equivilent = db.Set<T>().FirstOrDefault(equivExpr2);
+                var equivilent = func(db.Set<T>());
 
                 if (equivilent == null)
                     return null;
@@ -70,15 +88,14 @@ namespace AutoMapper
             }
         }
 
-        public IEnumerable<TDTO> GetMany<T, TDTO>(Expression<Func<TDTO, bool>> equivExpr)
+        public IEnumerable<TDTO> GetMany<TDTO, T>(Func<IQueryable<T>, IQueryable<T>> func)
             where T : class
             where TDTO : class
         {
             using (var db = new TDatabase())
             {
-                var equivExpr2 = Mapper.Map(equivExpr, typeof(Expression<Func<TDTO, bool>>), typeof(Expression<Func<T, bool>>)) as Expression<Func<T, bool>>;
-                var equivilent = db.Set<T>().Where(equivExpr2);
-                return equivilent.Select(e => Mapper.Map<T, TDTO>(e)).ToList();
+                var equivilent = func(db.Set<T>());
+                return equivilent.Project().To<TDTO>();
             }
         }
     }

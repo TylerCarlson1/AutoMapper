@@ -1,3 +1,5 @@
+using AutoMapper.EquivilencyExpression;
+
 namespace AutoMapper
 {
     using System;
@@ -115,7 +117,7 @@ namespace AutoMapper
 
             return _propertyMaps.Concat(_inheritedMaps);
         }
-
+        
         public IEnumerable<PropertyMap> GetCustomPropertyMaps()
         {
             return _propertyMaps;

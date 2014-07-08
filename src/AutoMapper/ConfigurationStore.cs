@@ -377,14 +377,11 @@ namespace AutoMapper
                     .Where(t =>
                     {
                         return destinationType.IsAssignableFrom(t.DestinationType) &&
-                               t.SourceType.IsAssignableFrom(source.GetType()) &&
-                               (
-                                   destinationType.IsAssignableFrom(t.DestinationType) ||
-                                   t.GetDerivedTypeFor(potentialSourceType) != null
-                               )
-                            ;
+                               t.SourceType.IsInstanceOfType(source) &&
+                               ((destination != null && t.GetDerivedTypeFor(potentialSourceType).IsInstanceOfType(destination))
+                               || destination == null);
                     }
-                    );
+                    ).ToList();
 
                 var potentialDestTypeMap =
                     potentialTypes

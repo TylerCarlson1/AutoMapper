@@ -96,6 +96,7 @@ namespace AutoMapper.IntegrationTests.Net4
             {
                 Mapper.CreateMap<Base, BaseDTO>();
                 Mapper.CreateMap<Sub, SubDTO>();
+                Mapper.Configuration.AllowNullDestinationValues = false;
                 Mapper.AssertConfigurationIsValid();
 
                 using (var context = new Context())
@@ -114,7 +115,7 @@ namespace AutoMapper.IntegrationTests.Net4
                     baseDTO.Sub.Sub1.ShouldEqual("sub1");
 
 
-                    baseDTO = Mapper.Map<BaseDTO>(context.Bases.FirstOrDefault());
+                    baseDTO = context.Bases.Project().To<BaseDTO>().FirstOrDefault();
                     baseDTO.ShouldNotBeNull();
                     baseDTO.BaseID.ShouldEqual(1);
                     baseDTO.Sub.Sub1.ShouldEqual("sub1");
