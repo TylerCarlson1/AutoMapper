@@ -95,7 +95,7 @@ namespace AutoMapper
             using (var db = new TDatabase())
             {
                 var equivilent = func(db.Set<T>());
-                return equivilent.Project().To<TDTO>();
+                return equivilent.Project().To<TDTO>().ToList();
             }
         }
     }
