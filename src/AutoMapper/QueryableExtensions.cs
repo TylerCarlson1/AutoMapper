@@ -89,12 +89,28 @@ namespace AutoMapper.QueryableExtensions
 
             var bindings = CreateMemberBindings(mappingEngine, request, typeMap, instanceParameter, typePairCount);
 
-            Expression total = Expression.MemberInit(
-                Expression.New(request.DestinationType),
+            var parameterReplacer = new ParameterReplacementVisitor(instanceParameter);
+            var visitor = new NewFinderVisitor();
+            var ctorExpr = typeMap.ConstructExpression ?? Expression.Lambda(Expression.New(request.DestinationType));
+            visitor.Visit(parameterReplacer.Visit(ctorExpr));
+
+            var expression = Expression.MemberInit(
+                visitor.NewExpression,
                 bindings.ToArray()
                 );
 
-            return total;
+            return expression;
+        }
+
+        private class NewFinderVisitor : ExpressionVisitor
+        {
+            public NewExpression NewExpression { get; private set; }
+
+            protected override Expression VisitNew(NewExpression node)
+            {
+                NewExpression = node;
+                return base.VisitNew(node);
+            }
         }
 
         private static List<MemberBinding> CreateMemberBindings(IMappingEngine mappingEngine, ExpressionRequest request,
@@ -112,33 +128,39 @@ namespace AutoMapper.QueryableExtensions
             {
                 var result = ResolveExpression(propertyMap, request.SourceType, instanceParameter);
 
-                var destinationMember = propertyMap.DestinationProperty.MemberInfo;
-
-                if (propertyMap.ExplicitExpansion && !request.IncludedMembers.Contains(destinationMember.Name))
+                if (propertyMap.ExplicitExpansion && !request.IncludedMembers.Contains(propertyMap.DestinationProperty.Name))
                     continue;
 
+                var propertyTypeMap = mappingEngine.ConfigurationProvider.FindTypeMapFor(result.Type, propertyMap.DestinationPropertyType);
+                var propertyRequest = new ExpressionRequest(result.Type, propertyMap.DestinationPropertyType, request.IncludedMembers);
+                
                 MemberAssignment bindExpression;
 
                 if (propertyMap.DestinationPropertyType.IsNullableType()
                     && !result.Type.IsNullableType())
                 {
-                    bindExpression = BindNullableExpression(propertyMap, result, destinationMember);
+                    bindExpression = BindNullableExpression(propertyMap, result);
                 }
                 else if (propertyMap.DestinationPropertyType.IsAssignableFrom(result.Type))
                 {
-                    bindExpression = BindAssignableExpression(destinationMember, result);
+                    bindExpression = BindAssignableExpression(propertyMap, result);
                 }
                 else if (propertyMap.DestinationPropertyType.GetInterfaces().Any(t => t.Name == "IEnumerable") &&
                     propertyMap.DestinationPropertyType != typeof(string))
                 {
-                    bindExpression = BindEnumerableExpression(mappingEngine, propertyMap, request, result, destinationMember, typePairCount);
+                    bindExpression = BindEnumerableExpression(mappingEngine, propertyMap, request, result, typePairCount);
                 }
-                else if (result.Type != propertyMap.DestinationPropertyType &&
-                    // avoid nullable etc.
-                         propertyMap.DestinationPropertyType.BaseType != typeof(ValueType) &&
-                         propertyMap.DestinationPropertyType.BaseType != typeof(Enum))
+                else if (propertyTypeMap != null && propertyTypeMap.CustomProjection == null)
                 {
-                    bindExpression = BindMappedTypeExpression(mappingEngine, propertyMap, request, result, destinationMember, typePairCount);
+                    bindExpression = BindMappedTypeExpression(mappingEngine, propertyMap, propertyRequest, result, typePairCount);
+                }
+                else if (propertyTypeMap != null && propertyTypeMap.CustomProjection != null)
+                {
+                    bindExpression = BindCustomProjectionExpression(propertyMap, propertyTypeMap, result);
+                }
+                else if (propertyMap.DestinationPropertyType == typeof (string))
+                {
+                    bindExpression = BindStringExpression(propertyMap, result);
                 }
                 else
                 {
@@ -150,38 +172,53 @@ namespace AutoMapper.QueryableExtensions
             return bindings;
         }
 
-        private static MemberAssignment BindNullableExpression(PropertyMap propertyMap, ExpressionResolutionResult result, MemberInfo destinationMember)
+        private static MemberAssignment BindStringExpression(PropertyMap propertyMap, ExpressionResolutionResult result)
         {
-            if (result.ResolutionExpression.NodeType == ExpressionType.MemberAccess
-                && ((MemberExpression)result.ResolutionExpression).Expression.NodeType == ExpressionType.MemberAccess)
-            {
-                var destType = propertyMap.DestinationPropertyType;
-                var memberExpr = (MemberExpression)result.ResolutionExpression;
-                var parentExpr = memberExpr.Expression;
-                Expression expressionToBind = Expression.Convert(memberExpr, destType);
-                var nullExpression = Expression.Convert(Expression.Constant(null), destType);
-                while (parentExpr.NodeType != ExpressionType.Parameter)
-                {
-                    memberExpr = (MemberExpression)memberExpr.Expression;
-                    parentExpr = memberExpr.Expression;
-                    expressionToBind = Expression.Condition(
-                        Expression.Equal(memberExpr, Expression.Constant(null)),
-                        nullExpression,
-                        expressionToBind
-                        );
-                }
-
-                return Expression.Bind(destinationMember, expressionToBind);
-            }
-
-            return Expression.Bind(destinationMember, Expression.Convert(result.ResolutionExpression, propertyMap.DestinationPropertyType));
+            return Expression.Bind(propertyMap.DestinationProperty.MemberInfo, Expression.Call(result.ResolutionExpression, "ToString", null, null));
         }
 
-        private static MemberAssignment BindMappedTypeExpression(IMappingEngine mappingEngine, PropertyMap propertyMap, ExpressionRequest request, ExpressionResolutionResult result, MemberInfo destinationMember, Internal.IDictionary<ExpressionRequest, int> typePairCount)
+        private static MemberAssignment BindCustomProjectionExpression(PropertyMap propertyMap, TypeMap propertyTypeMap, ExpressionResolutionResult result)
+        {
+            var visitor = new ParameterReplacementVisitor(result.ResolutionExpression);
+
+            var replaced = visitor.Visit(propertyTypeMap.CustomProjection.Body);
+
+            return Expression.Bind(propertyMap.DestinationProperty.MemberInfo, replaced);
+        }
+
+        private static MemberAssignment BindNullableExpression(PropertyMap propertyMap, ExpressionResolutionResult result)
+        {
+            if (result.ResolutionExpression.NodeType == ExpressionType.MemberAccess)
+            {
+                var memberExpr = (MemberExpression)result.ResolutionExpression;
+                if (memberExpr.Expression != null && memberExpr.Expression.NodeType == ExpressionType.MemberAccess)
+                {
+                    var destType = propertyMap.DestinationPropertyType;
+                    var parentExpr = memberExpr.Expression;
+                    Expression expressionToBind = Expression.Convert(memberExpr, destType);
+                    var nullExpression = Expression.Convert(Expression.Constant(null), destType);
+                    while (parentExpr.NodeType != ExpressionType.Parameter)
+                    {
+                        memberExpr = (MemberExpression) memberExpr.Expression;
+                        parentExpr = memberExpr.Expression;
+                        expressionToBind = Expression.Condition(
+                            Expression.Equal(memberExpr, Expression.Constant(null)),
+                            nullExpression,
+                            expressionToBind
+                            );
+                    }
+
+                    return Expression.Bind(propertyMap.DestinationProperty.MemberInfo, expressionToBind);
+                }
+            }
+
+            return Expression.Bind(propertyMap.DestinationProperty.MemberInfo, Expression.Convert(result.ResolutionExpression, propertyMap.DestinationPropertyType));
+        }
+
+        private static MemberAssignment BindMappedTypeExpression(IMappingEngine mappingEngine, PropertyMap propertyMap, ExpressionRequest request, ExpressionResolutionResult result, Internal.IDictionary<ExpressionRequest, int> typePairCount)
         {
             MemberAssignment bindExpression;
-            var memberPair = new ExpressionRequest(result.Type, propertyMap.DestinationPropertyType, request.IncludedMembers);
-            var transformedExpression = CreateMapExpression(mappingEngine, memberPair,
+            var transformedExpression = CreateMapExpression(mappingEngine, request,
                 result.ResolutionExpression,
                 typePairCount);
 
@@ -195,16 +232,16 @@ namespace AutoMapper.QueryableExtensions
                         transformedExpression, expressionNull);
             }
 
-            bindExpression = Expression.Bind(destinationMember, transformedExpression);
+            bindExpression = Expression.Bind(propertyMap.DestinationProperty.MemberInfo, transformedExpression);
             return bindExpression;
         }
 
-        private static MemberAssignment BindAssignableExpression(MemberInfo destinationMember, ExpressionResolutionResult result)
+        private static MemberAssignment BindAssignableExpression(PropertyMap propertyMap, ExpressionResolutionResult result)
         {
-            return Expression.Bind(destinationMember, result.ResolutionExpression);
+            return Expression.Bind(propertyMap.DestinationProperty.MemberInfo, result.ResolutionExpression);
         }
 
-        private static MemberAssignment BindEnumerableExpression(IMappingEngine mappingEngine, PropertyMap propertyMap,  ExpressionRequest request, ExpressionResolutionResult result, MemberInfo destinationMember, Internal.IDictionary<ExpressionRequest, int> typePairCount)
+        private static MemberAssignment BindEnumerableExpression(IMappingEngine mappingEngine, PropertyMap propertyMap,  ExpressionRequest request, ExpressionResolutionResult result, Internal.IDictionary<ExpressionRequest, int> typePairCount)
         {
             MemberAssignment bindExpression;
             Type destinationListType = GetDestinationListTypeFor(propertyMap);
@@ -240,7 +277,7 @@ namespace AutoMapper.QueryableExtensions
                 // Call .ToList() on IEnumerable
                 var toListCallExpression = GetToListCallExpression(propertyMap, destinationListType, selectExpression);
 
-                bindExpression = Expression.Bind(destinationMember, toListCallExpression);
+                bindExpression = Expression.Bind(propertyMap.DestinationProperty.MemberInfo, toListCallExpression);
             }
             else if (propertyMap.DestinationPropertyType.IsArray)
             {
@@ -250,12 +287,12 @@ namespace AutoMapper.QueryableExtensions
                     "ToArray",
                     new Type[] { destinationListType },
                     selectExpression);
-                bindExpression = Expression.Bind(destinationMember, toArrayCallExpression);
+                bindExpression = Expression.Bind(propertyMap.DestinationProperty.MemberInfo, toArrayCallExpression);
             }           
             else
             {
                 // destination type implements ienumerable, but is not an ilist. allow deferred enumeration
-                bindExpression = Expression.Bind(destinationMember, selectExpression);
+                bindExpression = Expression.Bind(propertyMap.DestinationProperty.MemberInfo, selectExpression);
             }
             return bindExpression;
         }
@@ -280,51 +317,139 @@ namespace AutoMapper.QueryableExtensions
                 selectExpression);
         }
 
+        private static readonly IList<IExpressionResultConverter> ExpressionResultConverters =
+            new IExpressionResultConverter[]
+            {
+                new MemberGetterExpressionResultConverter(),
+                new MemberResolverExpressionResultConverter(),
+                new NullSubstitutionExpressionResultConverter(), 
+            };
+
         private static ExpressionResolutionResult ResolveExpression(PropertyMap propertyMap, Type currentType, Expression instanceParameter)
         {
-            Expression currentChild = instanceParameter;
-            Type currentChildType = currentType;
+            var result = new ExpressionResolutionResult(instanceParameter, currentType);
             foreach (var resolver in propertyMap.GetSourceValueResolvers())
             {
-                var getter = resolver as IMemberGetter;
-                if (getter != null)
-                {
-                    var memberInfo = getter.MemberInfo;
-
-                    var propertyInfo = memberInfo as PropertyInfo;
-                    if (propertyInfo != null)
-                    {
-                        currentChild = Expression.Property(currentChild, propertyInfo);
-                        currentChildType = propertyInfo.PropertyType;
-                    }
-                    else
-                        currentChildType = currentChild.Type;
-                }
-                else
-                {
-                    var oldParameter = propertyMap.CustomExpression.Parameters.Single();
-                    var newParameter = instanceParameter;
-                    var converter = new ConversionVisitor(newParameter, oldParameter);
-
-                    currentChild = converter.Visit(propertyMap.CustomExpression.Body);
-                    currentChildType = currentChild.Type;
-                }
+                var matchingExpressionConverter = ExpressionResultConverters.FirstOrDefault(c => c.CanGetExpressionResolutionResult(result, resolver));
+                if (matchingExpressionConverter == null)
+                    throw new Exception("Can't resolve this to Queryable Expression");
+                result = matchingExpressionConverter.GetExpressionResolutionResult(result, propertyMap, resolver);
             }
-
-            return new ExpressionResolutionResult(currentChild, currentChildType);
+            return result;
         }
 
+        private interface IExpressionResultConverter
+        {
+            ExpressionResolutionResult GetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, PropertyMap propertyMap, IValueResolver valueResolver);
+            bool CanGetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, IValueResolver valueResolver);
+        }
+
+        private class MemberGetterExpressionResultConverter : IExpressionResultConverter
+        {
+            public ExpressionResolutionResult GetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, PropertyMap propertyMap, IValueResolver valueResolver)
+            {
+                Expression currentChild = expressionResolutionResult.ResolutionExpression;
+                Type currentChildType = expressionResolutionResult.Type;
+                var getter = valueResolver as IMemberGetter;
+                var memberInfo = getter.MemberInfo;
+
+                var propertyInfo = memberInfo as PropertyInfo;
+                if (propertyInfo != null)
+                {
+                    currentChild = Expression.Property(currentChild, propertyInfo);
+                    currentChildType = propertyInfo.PropertyType;
+                }
+                else
+                    currentChildType = currentChild.Type;
+
+                return new ExpressionResolutionResult(currentChild, currentChildType);
+            }
+
+            public bool CanGetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, IValueResolver valueResolver)
+            {
+                return valueResolver is IMemberGetter;
+            }
+        }
+
+        private class NullSubstitutionExpressionResultConverter : IExpressionResultConverter
+        {
+            public ExpressionResolutionResult GetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, PropertyMap propertyMap, IValueResolver valueResolver)
+            {
+                Expression currentChild = expressionResolutionResult.ResolutionExpression;
+                Type currentChildType = expressionResolutionResult.Type;
+                var nullSubstitute = propertyMap.NullSubstitute;
+
+                var newParameter = expressionResolutionResult.ResolutionExpression;
+                var converter = new NullSubstitutionConversionVisitor(newParameter, nullSubstitute);
+
+                currentChild = converter.Visit(currentChild);
+                currentChildType = currentChildType.GetTypeOfNullable();
+
+                return new ExpressionResolutionResult(currentChild, currentChildType);
+            }
+
+            public bool CanGetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, IValueResolver valueResolver)
+            {
+                return valueResolver is NullReplacementMethod && expressionResolutionResult.Type.IsNullableType();
+            }
+        }
+
+        private class NullSubstitutionConversionVisitor : ExpressionVisitor
+        {
+            private readonly Expression newParameter;
+            private readonly object _nullSubstitute;
+
+            public NullSubstitutionConversionVisitor(Expression newParameter, object nullSubstitute)
+            {
+                this.newParameter = newParameter;
+                _nullSubstitute = nullSubstitute;
+            }
+
+            protected override Expression VisitMember(MemberExpression node)
+            {
+                if (node == newParameter)
+                {
+                    var equalsNull = Expression.Property(newParameter, "HasValue");
+                    var nullConst = Expression.Condition(equalsNull, Expression.Property(newParameter, "Value"), Expression.Constant(_nullSubstitute), node.Type.GetTypeOfNullable());
+                    return nullConst;
+                }
+                return node;
+            }
+        }
+
+        private class MemberResolverExpressionResultConverter : IExpressionResultConverter
+        {
+            public ExpressionResolutionResult GetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, PropertyMap propertyMap, IValueResolver valueResolver)
+            {
+                Expression currentChild = expressionResolutionResult.ResolutionExpression;
+                Type currentChildType = expressionResolutionResult.Type;
+
+                var oldParameter = propertyMap.CustomExpression.Parameters.Single();
+                var newParameter = expressionResolutionResult.ResolutionExpression;
+                var converter = new ParameterConversionVisitor(newParameter, oldParameter);
+
+                currentChild = converter.Visit(propertyMap.CustomExpression.Body);
+                currentChildType = currentChild.Type;
+
+                return new ExpressionResolutionResult(currentChild, currentChildType);
+            }
+
+            public bool CanGetExpressionResolutionResult(ExpressionResolutionResult expressionResolutionResult, IValueResolver valueResolver)
+            {
+                return valueResolver is IMemberResolver;
+            }
+        }
         /// <summary>
         /// This expression visitor will replace an input parameter by another one
         /// 
         /// see http://stackoverflow.com/questions/4601844/expression-tree-copy-or-convert
         /// </summary>
-        private class ConversionVisitor : ExpressionVisitor
+        private class ParameterConversionVisitor : ExpressionVisitor
         {
             private readonly Expression newParameter;
             private readonly ParameterExpression oldParameter;
 
-            public ConversionVisitor(Expression newParameter, ParameterExpression oldParameter)
+            public ParameterConversionVisitor(Expression newParameter, ParameterExpression oldParameter)
             {
                 this.newParameter = newParameter;
                 this.oldParameter = oldParameter;
@@ -347,6 +472,21 @@ namespace AutoMapper.QueryableExtensions
             }
         }
 
+        private class ParameterReplacementVisitor : ExpressionVisitor
+        {
+            private readonly Expression _memberExpression;
+
+            public ParameterReplacementVisitor(Expression memberExpression)
+            {
+                _memberExpression = memberExpression;
+            }
+
+            protected override Expression VisitParameter(ParameterExpression node)
+            {
+                return _memberExpression;
+                //return base.VisitParameter(node);
+            }
+        }
         private class ExpressionResolutionResult
         {
             public Expression ResolutionExpression { get; private set; }

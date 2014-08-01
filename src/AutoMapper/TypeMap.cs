@@ -6,6 +6,7 @@ namespace AutoMapper
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Reflection;
     using Impl;
     using Internal;
@@ -58,6 +59,7 @@ namespace AutoMapper
 
         public string Profile { get; set; }
         public Func<ResolutionContext, object> CustomMapper { get; private set; }
+        public LambdaExpression CustomProjection { get; private set; }
 
         public Action<object, object> BeforeMap
         {
@@ -109,6 +111,7 @@ namespace AutoMapper
         }
 
         public Func<object, object> Substitution { get; set; }
+        public LambdaExpression ConstructExpression { get; set; }
 
         public IEnumerable<PropertyMap> GetPropertyMaps()
         {
@@ -368,6 +371,12 @@ namespace AutoMapper
                 contextCopy = contextCopy.Parent;
             }
             return currentDepth <= maxDepth;
+        }
+
+        public void UseCustomProjection(LambdaExpression projectionExpression)
+        {
+            CustomProjection = projectionExpression;
+            _propertyMaps.Clear();
         }
     }
 }

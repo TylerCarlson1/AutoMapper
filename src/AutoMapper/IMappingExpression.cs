@@ -3,6 +3,8 @@ using System.Linq.Expressions;
 
 namespace AutoMapper
 {
+    using System.ComponentModel;
+
     /// <summary>
     /// Mapping configuration options for non-generic maps
     /// </summary>
@@ -118,6 +120,12 @@ namespace AutoMapper
         IMappingExpression<TSource, TDestination> WithProfile(string profileName);
 
         /// <summary>
+        /// Skip member mapping and use a custom expression during LINQ projection
+        /// </summary>
+        /// <param name="projectionExpression">Projection expression</param>
+        void ProjectUsing(Expression<Func<TSource, TDestination>> projectionExpression);
+
+        /// <summary>
         /// Skip member mapping and use a custom function to convert to the destination type
         /// </summary>
         /// <param name="mappingFunction">Callback to convert from source type to destination type</param>
@@ -169,6 +177,13 @@ namespace AutoMapper
         /// <param name="ctor">Callback to create the destination type given the source object</param>
         /// <returns>Itself</returns>
         IMappingExpression<TSource, TDestination> ConstructUsing(Func<TSource, TDestination> ctor);
+
+        /// <summary>
+        /// Supply a custom instantiation expression for the destination type for LINQ projection
+        /// </summary>
+        /// <param name="ctor">Callback to create the destination type given the source object</param>
+        /// <returns>Itself</returns>
+        IMappingExpression<TSource, TDestination> ConstructProjectionUsing(Expression<Func<TSource, TDestination>> ctor);
 
         /// <summary>
         /// Supply a custom instantiation function for the destination type, based on the entire resolution context
@@ -225,6 +240,12 @@ namespace AutoMapper
         /// <param name="substituteFunc">Substitution function</param>
         /// <returns>New source object to map.</returns>
         IMappingExpression<TSource, TDestination> Substitute(Func<TSource, object> substituteFunc);
+
+        /// <summary>
+        /// The current TypeMap being configured
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        TypeMap TypeMap { get; }
     }
 
     /// <summary>
@@ -263,6 +284,11 @@ namespace AutoMapper
         /// Ignore this member for configuration validation and skip during mapping
         /// </summary>
         void Ignore();
+
+        /// <summary>
+        /// Use the destination value instead of mapping from the source value or creating a new instance
+        /// </summary>
+        void UseDestinationValue();
     }
 
     /// <summary>
