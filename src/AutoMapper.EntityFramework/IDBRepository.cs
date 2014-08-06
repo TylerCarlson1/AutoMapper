@@ -68,7 +68,7 @@ namespace AutoMapper
                     return;
                 var equivilent = db.Set<T>().FirstOrDefault(equivExpr);
 
-                if (equivilent == null)
+                if (equivilent != null)
                     db.Set<T>().Remove(equivilent);
                 db.SaveChanges();
             }
