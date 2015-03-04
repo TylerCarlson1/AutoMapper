@@ -1,6 +1,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0691ABF2-B3C7-43BF-9862-2D8D1299CE58}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 	ProjectSection(SolutionItems) = preProject
 		AutoMapper.targets = AutoMapper.targets
 		..\default.ps1 = ..\default.ps1
@@ -11,36 +14,84 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests.Net4", "UnitTests\UnitTests.Net4.csproj", "{002075C5-6517-4794-BC99-9B17B9E884E7}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper", "AutoMapper\AutoMapper.csproj", "{DDF551F9-B27D-4283-BFA0-E7068E05967D}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapperSamples", "AutoMapperSamples\AutoMapperSamples.csproj", "{277C689D-B1C1-43EA-B20D-C1155C4B2EA7}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmark", "Benchmark\Benchmark.csproj", "{B8051389-CB47-46FB-B234-9D49506704AA}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{C1930F52-C66E-4E56-B7DB-FD42E497FFF0}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1BCC7A00-6382-4891-936A-F164614D26A4}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{B84E9CD3-2DDB-47FA-84BE-732EBF2F46CD}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.Net4", "AutoMapper\AutoMapper.Net4.csproj", "{8C955148-FA96-4F0D-880D-ABB6770F54E9}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.SL5", "AutoMapper\AutoMapper.SL5.csproj", "{A46863C7-1DEC-4037-9FC2-C353021F2490}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.WinRT", "AutoMapper\AutoMapper.WinRT.csproj", "{B80D950D-CC8D-4287-96B1-EEA037825E90}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.WP8", "AutoMapper\AutoMapper.WP8.csproj", "{B95F2EB2-519E-4BAB-B6B3-6DBBEA7879A6}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests.SL5", "UnitTests\UnitTests.SL5.csproj", "{BACACF2C-237F-4A48-A891-32B258207095}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests.WinRT", "UnitTests\UnitTests.WinRT.csproj", "{19CF22A3-AA57-458B-9D72-1D8AD069F428}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests.WP8", "UnitTests\UnitTests.WP8.csproj", "{70D99BDC-6B9E-49AD-96FD-AEC193D27B55}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntegrationTests.Net4", "IntegrationTests.Net4\IntegrationTests.Net4.csproj", "{906F2125-2AEC-44A3-A95F-CB79C0A745BB}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{1A726C5A-1BDC-4275-95EB-1FAFCCCB4F20}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 	ProjectSection(SolutionItems) = preProject
 		.nuget\NuGet.Config = .nuget\NuGet.Config
 		.nuget\NuGet.exe = .nuget\NuGet.exe
@@ -48,14 +99,34 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{1A726C
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.Android", "AutoMapper\AutoMapper.Android.csproj", "{DFE156BE-4D3D-4A6A-9E23-747DFD46920D}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.iOS", "AutoMapper\AutoMapper.iOS.csproj", "{693983C2-F4DE-44CB-A1D3-2AB00DF159DE}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.WPA81", "AutoMapper\AutoMapper.WPA81.csproj", "{F0D56AA4-806C-4D76-9227-5078CC44A68C}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.EntityFramework", "AutoMapper.EntityFramework\AutoMapper.EntityFramework.csproj", "{EF6C64B3-4731-49C9-855A-E7E9DB4171C4}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoMapper.LinqToSql", "AutoMapper.LinqToSql\AutoMapper.LinqToSql.csproj", "{0C9D3020-29BD-45CE-BA7C-58644334A9E3}"
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 EndProject
 Global
+	GlobalSection(PureCMSourceControlProviderSolutionProperties) = preSolution
+		SolutionIsControlled = True
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|ARM = Debug|ARM
@@ -332,6 +403,21 @@ Global
 		{EF6C64B3-4731-49C9-855A-E7E9DB4171C4}.ReleaseWin8|ARM.ActiveCfg = Release|Any CPU
 		{EF6C64B3-4731-49C9-855A-E7E9DB4171C4}.ReleaseWin8|x64.ActiveCfg = Release|Any CPU
 		{EF6C64B3-4731-49C9-855A-E7E9DB4171C4}.ReleaseWin8|x86.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Release|ARM.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Release|x64.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.Release|x86.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.ReleaseWin8|Any CPU.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.ReleaseWin8|Any CPU.Build.0 = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.ReleaseWin8|ARM.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.ReleaseWin8|x64.ActiveCfg = Release|Any CPU
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3}.ReleaseWin8|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -352,6 +438,7 @@ Global
 		{693983C2-F4DE-44CB-A1D3-2AB00DF159DE} = {C1930F52-C66E-4E56-B7DB-FD42E497FFF0}
 		{F0D56AA4-806C-4D76-9227-5078CC44A68C} = {C1930F52-C66E-4E56-B7DB-FD42E497FFF0}
 		{EF6C64B3-4731-49C9-855A-E7E9DB4171C4} = {C1930F52-C66E-4E56-B7DB-FD42E497FFF0}
+		{0C9D3020-29BD-45CE-BA7C-58644334A9E3} = {C1930F52-C66E-4E56-B7DB-FD42E497FFF0}
 		{277C689D-B1C1-43EA-B20D-C1155C4B2EA7} = {B84E9CD3-2DDB-47FA-84BE-732EBF2F46CD}
 	EndGlobalSection
 EndGlobal

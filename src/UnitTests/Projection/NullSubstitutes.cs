@@ -28,7 +28,6 @@
         protected override void Because_of()
         {
             var source = new[] {new Source()}.AsQueryable();
-
             _dests = source.Project().To<Dest>().ToList();
         }
 

@@ -87,7 +87,7 @@ namespace AutoMapper.EquivilencyExpression
 
         protected override Expression VisitMember(MemberExpression node)
         {
-            if (node.Member is PropertyInfo && node.Member.DeclaringType == typeof(T))
+            if (node.Member is PropertyInfo && node.Member.DeclaringType.IsAssignableFrom(typeof(T)))
             {
                 var memberExpression = Expression.Constant(node.Member.ToMemberGetter().GetValue(_value));
                 return memberExpression;

@@ -11,7 +11,7 @@ namespace AutoMapper
 {
     public interface IDBRepository
     {
-        void Save<T,TI>(object value) 
+        void Save<T,TI>(object value, bool updateSavedObject = true) 
             where T : class
             where TI : class, T;
 
@@ -35,7 +35,7 @@ namespace AutoMapper
             EquivilentExpressions.GenerateEquality.Add(new GenerateEntityFrameworkPrimaryKeyEquivilentExpressions<TDatabase>());
         }
 
-        public void Save<T,TI>(object value) 
+        public void Save<T,TI>(object value, bool updateSavedObject = true) 
             where T : class
             where TI : class, T
         {
@@ -55,6 +55,8 @@ namespace AutoMapper
                 }
                 Mapper.Map(value, equivilent, value.GetNonDynamicProxyType(), typeof(T));
                 db.SaveChanges();
+                if (updateSavedObject)
+                    Mapper.Map(equivilent, value);
             }
         }
 

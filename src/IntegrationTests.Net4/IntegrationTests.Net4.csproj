@@ -46,6 +46,7 @@
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -61,12 +62,21 @@
   <ItemGroup>
     <Compile Include="ChildClassTests.cs" />
     <Compile Include="CustomMapFromTest.cs" />
+    <Compile Include="DataClasses1.designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>DataClasses1.dbml</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AutoMapper.EntityFramework\AutoMapper.EntityFramework.csproj">
       <Project>{ef6c64b3-4731-49c9-855a-e7e9db4171c4}</Project>
       <Name>AutoMapper.EntityFramework</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AutoMapper.LinqToSql\AutoMapper.LinqToSql.csproj">
+      <Project>{0c9d3020-29bd-45ce-ba7c-58644334a9e3}</Project>
+      <Name>AutoMapper.LinqToSql</Name>
     </ProjectReference>
     <ProjectReference Include="..\AutoMapper\AutoMapper.csproj">
       <Project>{ddf551f9-b27d-4283-bfa0-e7068e05967d}</Project>
@@ -79,7 +89,20 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="DataClasses1.dbml">
+      <Generator>MSLinqToSQLGenerator</Generator>
+      <LastGenOutput>DataClasses1.designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DataClasses1.dbml.layout">
+      <DependentUpon>DataClasses1.dbml</DependentUpon>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
