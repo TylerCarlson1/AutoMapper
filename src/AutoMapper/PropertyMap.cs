@@ -126,7 +126,7 @@ namespace AutoMapper
                 && !_hasPreCondition
                 && !_hasCondition
                 && SourceType != null
-                && !SourceType.IsEnumerableType()
+                && (!SourceType.IsEnumerableType() || SourceType == typeof(string))
                 && typeMapRegistry.GetTypeMap(new TypePair(SourceType, DestinationPropertyType)) == null
                 && ((EnumMapper.EnumToEnumMapping(new TypePair(SourceType, DestinationPropertyType)) && !EnumMapper.EnumToNullableTypeMapping(new TypePair(SourceType, DestinationPropertyType))) || !EnumMapper.EnumToEnumMapping(new TypePair(SourceType, DestinationPropertyType)))
                 && DestinationPropertyType.IsAssignableFrom(SourceType))
@@ -139,11 +139,11 @@ namespace AutoMapper
 
                 _mapperFunc = (mappedObject, context) =>
                 {
-                    var value = !context.Mapper.ShouldMapSourceValueAsNull(context) && DestinationProperty.GetValue(mappedObject) == null
-                        ? context.Mapper.CreateObject(context)
-                        : ResolveValue(context);
+                    var value = ResolveValue(context);
+                    if (value == null && !context.Mapper.ShouldMapSourceValueAsNull(context))
+                        value = ObjectCreator.CreateNonNullValue(SourceType);
 
-                        DestinationProperty.SetValue(mappedObject, value);
+                    DestinationProperty.SetValue(mappedObject, value);
                 };
             }
             else
