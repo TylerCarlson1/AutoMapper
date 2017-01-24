@@ -128,17 +128,7 @@ namespace AutoMapper.Mappers
                 var convertedArguments = Visit(node.Arguments);
                 var convertedMethodArgumentTypes = node.Method.GetGenericArguments().Select(t => GetConvertingTypeIfExists(node.Arguments, t, convertedArguments)).ToArray();
                 var convertedMethodCall = node.Method.GetGenericMethodDefinition().MakeGenericMethod(convertedMethodArgumentTypes);
-                var parameters = node.Method.GetParameters().Select((p, i) => ConvertType(p, convertedArguments[i])).ToArray();
-                return Call(convertedMethodCall, parameters);
-            }
-
-            private Expression ConvertType(ParameterInfo parameterInfo, Expression convertedArgument)
-            {
-                var src = parameterInfo.ParameterType;
-                var dest = convertedArgument.Type;
-                if (dest.IsGenericType() && src.IsGenericType())
-                    return ExpressionExtensions.ToType(convertedArgument, src.GetGenericTypeDefinition().MakeGenericType(dest.GenericTypeArguments));
-                return convertedArgument;
+                return Call(convertedMethodCall, convertedArguments);
             }
 
             private static Type GetConvertingTypeIfExists(IList<Expression> args, Type t, IList<Expression> arguments)
