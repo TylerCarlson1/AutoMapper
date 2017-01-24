@@ -267,7 +267,7 @@ namespace AutoMapper.Mappers
                 {
                     if (node.Expression is MemberExpression)
                         return GetConvertedSubMemberCall(node);
-                    return node;
+                    return _parentMappingVisitor!= null ? _parentMappingVisitor.Visit(node) : node;
                 }
 
                 var constantVisitor = new IsConstantExpressionVisitor();
@@ -327,7 +327,7 @@ namespace AutoMapper.Mappers
 
             private PropertyMap PropertyMap(MemberExpression node)
             {
-                if (_dictionary.Keys.First() == null)
+                if (_dictionary.Keys.FirstOrDefault() == null)
                     return null;
 
                 if (node.Member.IsStatic())
