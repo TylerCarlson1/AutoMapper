@@ -32,9 +32,9 @@ namespace AutoMapper.Mappers
                     src = src.GetTypeInfo().GenericTypeArguments[i];
 
                 var tm = context.ConfigurationProvider.ResolveTypeMap(dest, src);
-                return new Tuple<TypeMap, Tuple<Expression, Expression>>(tm,
-                    new Tuple<Expression, Expression>(p,
-                        Parameter(destDelegateType.GetTypeInfo().GenericTypeArguments[i], expression.Parameters[i].Name)));
+                return new Tuple<TypeMap, IList<Tuple<Expression, Expression>>>(tm,
+                    new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(p,
+                        Parameter(destDelegateType.GetTypeInfo().GenericTypeArguments[i], expression.Parameters[i].Name))});
             }).ToDictionary(kp => kp.Item1, kp => kp.Item2);
             
             var parentMasterVisitor = new MappingVisitor(context.ConfigurationProvider,
@@ -68,15 +68,15 @@ namespace AutoMapper.Mappers
             private IList<Type> _destSubTypes = new Type[0];
 
             private readonly IConfigurationProvider _configurationProvider;
-            private readonly IDictionary<TypeMap, Tuple<Expression, Expression>> _dictionary;
+            private readonly IDictionary<TypeMap, IList<Tuple<Expression, Expression>>> _dictionary;
             private readonly MappingVisitor _parentMappingVisitor;
 
             public MappingVisitor(IConfigurationProvider configurationProvider, IList<Type> destSubTypes)
-                : this(configurationProvider, new Dictionary<TypeMap, Tuple<Expression, Expression>>(), null, destSubTypes)
+                : this(configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>>(), null, destSubTypes)
             {
             }
 
-            internal MappingVisitor(IConfigurationProvider configurationProvider, IDictionary<TypeMap, Tuple<Expression, Expression>> dictionary, MappingVisitor parentMappingVisitor = null, IList<Type> destSubTypes = null)
+            internal MappingVisitor(IConfigurationProvider configurationProvider, IDictionary<TypeMap, IList<Tuple<Expression, Expression>>> dictionary, MappingVisitor parentMappingVisitor = null, IList<Type> destSubTypes = null)
             {
                 _configurationProvider = configurationProvider;
                 _dictionary = dictionary;
@@ -87,7 +87,7 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitConstant(ConstantExpression node)
             {
-                foreach (var tuple in _dictionary.Values)
+                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
                     if (ReferenceEquals(node, tuple.Item1))
                         return tuple.Item2;
                 return node;
@@ -95,9 +95,17 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitParameter(ParameterExpression node)
             {
-                foreach (var tuple in _dictionary.Values)
-                    if (ReferenceEquals(node, tuple.Item1))
+                foreach (var tuples in _dictionary.Values)
+                    foreach (var tuple in tuples)
+                        if (ReferenceEquals(node, tuple.Item1))
                         return tuple.Item2;
+                foreach (var tuples in _dictionary.Values)
+                    foreach (var tuple in tuples)
+                        if (node.Type == tuple.Item1.Type)
+                        {
+                            tuples.Add(new Tuple<Expression, Expression>(node, Parameter(tuple.Item2.Type, node.Name)));
+                            return tuples.Last().Item2;
+                        }
                 return node;
             }
 
@@ -120,7 +128,17 @@ namespace AutoMapper.Mappers
                 var convertedArguments = Visit(node.Arguments);
                 var convertedMethodArgumentTypes = node.Method.GetGenericArguments().Select(t => GetConvertingTypeIfExists(node.Arguments, t, convertedArguments)).ToArray();
                 var convertedMethodCall = node.Method.GetGenericMethodDefinition().MakeGenericMethod(convertedMethodArgumentTypes);
-                return Call(convertedMethodCall, convertedArguments);
+                var parameters = node.Method.GetParameters().Select((p, i) => ConvertType(p, convertedArguments[i])).ToArray();
+                return Call(convertedMethodCall, parameters);
+            }
+
+            private Expression ConvertType(ParameterInfo parameterInfo, Expression convertedArgument)
+            {
+                var src = parameterInfo.ParameterType;
+                var dest = convertedArgument.Type;
+                if (dest.IsGenericType() && src.IsGenericType())
+                    return ExpressionExtensions.ToType(convertedArgument, src.GetGenericTypeDefinition().MakeGenericType(dest.GenericTypeArguments));
+                return convertedArgument;
             }
 
             private static Type GetConvertingTypeIfExists(IList<Expression> args, Type t, IList<Expression> arguments)
@@ -213,7 +231,7 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitLambda<T>(Expression<T> expression)
             {
-                foreach (var tuple in _dictionary.Values)
+                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
                     if (expression.Parameters.Any(b => b.Type == tuple.Item1.Type))
                     return VisitLambdaExpression(expression);
                 return VisitAllParametersExpression(expression);
@@ -242,7 +260,7 @@ namespace AutoMapper.Mappers
 
                         var oldParam = expression.Parameters[i];
                         var newParam = Parameter(a, oldParam.Name);
-                        visitors.Add(new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, Tuple<Expression, Expression>> { [typeMap] = new Tuple<Expression, Expression>(oldParam, newParam)}, this));
+                        visitors.Add(new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>> { [typeMap] = new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(oldParam, newParam)}}, this));
                     }
                 }
                 return visitors.Aggregate(expression as Expression, (e, v) => v.Visit(e));
@@ -250,7 +268,7 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitMember(MemberExpression node)
             {
-                foreach (var tuple in _dictionary.Values)
+                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
                     if (node == tuple.Item1)
                     return tuple.Item2;
                 var propertyMap = PropertyMap(node);
@@ -276,10 +294,8 @@ namespace AutoMapper.Mappers
                 if (propertyMap.CustomExpression != null)
                     return propertyMap.CustomExpression.ReplaceParameters(replacedExpression);
 
-                Func<Expression, MemberInfo, Expression> getExpression = Expression.MakeMemberAccess;
-
                 return propertyMap.SourceMembers
-                    .Aggregate(replacedExpression, getExpression);
+                    .Aggregate(replacedExpression, MakeMemberAccess);
             }
 
             private class IsConstantExpressionVisitor : ExpressionVisitor
@@ -305,7 +321,7 @@ namespace AutoMapper.Mappers
                 if (sourceType == destType)
                     return MakeMemberAccess(baseExpression, node.Member);
                 var typeMap = _configurationProvider.FindTypeMapFor(sourceType, destType);
-                var subVisitor = new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, Tuple<Expression, Expression>> { [typeMap] =new Tuple<Expression, Expression>(node.Expression, baseExpression)}, this);
+                var subVisitor = new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>> { [typeMap] = new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(node.Expression, baseExpression)}}, this);
                 var newExpression = subVisitor.Visit(node);
                 _destSubTypes = _destSubTypes.Concat(subVisitor._destSubTypes).ToArray();
                 return newExpression;
