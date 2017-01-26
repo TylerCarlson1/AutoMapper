@@ -1,4 +1,5 @@
-﻿using Expression = System.Linq.Expressions.Expression;
+﻿using System.Collections;
+using Expression = System.Linq.Expressions.Expression;
 
 namespace AutoMapper.Mappers
 {
@@ -32,15 +33,13 @@ namespace AutoMapper.Mappers
                     src = src.GetTypeInfo().GenericTypeArguments[i];
 
                 var tm = context.ConfigurationProvider.ResolveTypeMap(dest, src);
-                return new Tuple<TypeMap, IList<Tuple<Expression, Expression>>>(tm,
-                    new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(p,
-                        Parameter(destDelegateType.GetTypeInfo().GenericTypeArguments[i], expression.Parameters[i].Name))});
-            }).ToDictionary(kp => kp.Item1, kp => kp.Item2);
+                return new Translation(tm,p, Parameter(destDelegateType.GetTypeInfo().GenericTypeArguments[i], expression.Parameters[i].Name));
+            }).ToArray();
             
             var parentMasterVisitor = new MappingVisitor(context.ConfigurationProvider,
                 destDelegateType.GetTypeInfo().GenericTypeArguments);
-            var typeMapVisitor = new MappingVisitor(context.ConfigurationProvider, dictionary,
-                parentMasterVisitor, destDelegateType.GetTypeInfo().GenericTypeArguments);
+            var typeMapVisitor = new MappingVisitor(context.ConfigurationProvider, destDelegateType.GetTypeInfo().GenericTypeArguments,
+                parentMasterVisitor, dictionary);
 
             // Map expression body and variable seperately
             var parameters = expression.Parameters.Select(typeMapVisitor.Visit).OfType<ParameterExpression>();
@@ -63,23 +62,49 @@ namespace AutoMapper.Mappers
             return Call(null, MapMethodInfo.MakeGenericMethod(sourceExpression.Type, destExpression.Type), sourceExpression, contextExpression);
         }
 
+        public class Translation
+        {
+            public TypeMap TypeMap { get; }
+            public IList<FromTo> FromTos { get; } = new List<FromTo>();
+
+            public Translation(TypeMap typeMap, Expression from, Expression to)
+                : this(typeMap)
+            {
+                TypeMap = typeMap;
+                FromTos.Add(new FromTo(@from, to));
+            }
+
+            public Translation(TypeMap typeMap)
+            {
+                TypeMap = typeMap;
+            }
+        }
+
+        public class FromTo
+        {
+            public Expression From { get; }
+            public Expression To { get; }
+
+            public FromTo(Expression from, Expression to)
+            {
+                From = from;
+                To = to;
+            }
+        }
+
         internal class MappingVisitor : ExpressionVisitor
         {
             private IList<Type> _destSubTypes = new Type[0];
 
             private readonly IConfigurationProvider _configurationProvider;
-            private readonly IDictionary<TypeMap, IList<Tuple<Expression, Expression>>> _dictionary;
+            private readonly IList<Translation> _translations = new List<Translation>();
             private readonly MappingVisitor _parentMappingVisitor;
-
-            public MappingVisitor(IConfigurationProvider configurationProvider, IList<Type> destSubTypes)
-                : this(configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>>(), null, destSubTypes)
-            {
-            }
-
-            internal MappingVisitor(IConfigurationProvider configurationProvider, IDictionary<TypeMap, IList<Tuple<Expression, Expression>>> dictionary, MappingVisitor parentMappingVisitor = null, IList<Type> destSubTypes = null)
+            
+            internal MappingVisitor(IConfigurationProvider configurationProvider, IList<Type> destSubTypes = null, MappingVisitor parentMappingVisitor = null, params Translation[] translations)
             {
                 _configurationProvider = configurationProvider;
-                _dictionary = dictionary;
+                foreach (var translation in translations)
+                    _translations.Add(translation);
                 _parentMappingVisitor = parentMappingVisitor;
                 if(destSubTypes != null)
                     _destSubTypes = destSubTypes;
@@ -87,24 +112,25 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitConstant(ConstantExpression node)
             {
-                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
-                    if (ReferenceEquals(node, tuple.Item1))
-                        return tuple.Item2;
+                foreach (var fromTo in _translations.SelectMany(t => t.FromTos))
+                    if (ReferenceEquals(node, fromTo.From))
+                        return fromTo.To;
                 return node;
             }
 
             protected override Expression VisitParameter(ParameterExpression node)
             {
-                foreach (var tuples in _dictionary.Values)
-                    foreach (var tuple in tuples)
-                        if (ReferenceEquals(node, tuple.Item1))
-                        return tuple.Item2;
-                foreach (var tuples in _dictionary.Values)
-                    foreach (var tuple in tuples)
-                        if (node.Type == tuple.Item1.Type)
+                foreach (var translations in _translations)
+                    foreach (var translation in translations.FromTos)
+                        if (ReferenceEquals(node, translation.From))
+                        return translation.To;
+                foreach (var translation in _translations)
+                    foreach (var fromTo in translation.FromTos)
+                        if (node.Type == fromTo.From.Type)
                         {
-                            tuples.Add(new Tuple<Expression, Expression>(node, Parameter(tuple.Item2.Type, node.Name)));
-                            return tuples.Last().Item2;
+                            var to = Parameter(fromTo.To.Type, node.Name);
+                            translation.FromTos.Add(new FromTo(node, to));
+                            return to;
                         }
                 return node;
             }
@@ -221,8 +247,8 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitLambda<T>(Expression<T> expression)
             {
-                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
-                    if (expression.Parameters.Any(b => b.Type == tuple.Item1.Type))
+                foreach (var translation in _translations.SelectMany(t => t.FromTos))
+                    if (expression.Parameters.Any(b => b.Type == translation.From.Type))
                     return VisitLambdaExpression(expression);
                 return VisitAllParametersExpression(expression);
             }
@@ -250,7 +276,8 @@ namespace AutoMapper.Mappers
 
                         var oldParam = expression.Parameters[i];
                         var newParam = Parameter(a, oldParam.Name);
-                        visitors.Add(new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>> { [typeMap] = new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(oldParam, newParam)}}, this));
+                        visitors.Add(new MappingVisitor(_configurationProvider, null, this,
+                            new Translation(typeMap) {FromTos = {new FromTo(oldParam, newParam)}}));
                     }
                 }
                 return visitors.Aggregate(expression as Expression, (e, v) => v.Visit(e));
@@ -258,9 +285,9 @@ namespace AutoMapper.Mappers
 
             protected override Expression VisitMember(MemberExpression node)
             {
-                foreach (var tuple in _dictionary.Values.SelectMany(t => t))
-                    if (node == tuple.Item1)
-                    return tuple.Item2;
+                foreach (var fromTos in _translations.SelectMany(t => t.FromTos))
+                    if (node == fromTos.From)
+                    return fromTos.To;
                 var propertyMap = PropertyMap(node);
 
                 if (propertyMap == null)
@@ -279,7 +306,7 @@ namespace AutoMapper.Mappers
 
                 var replacedExpression = Visit(node.Expression);
                 if (replacedExpression == node.Expression)
-                    replacedExpression = _parentMappingVisitor.Visit(node.Expression);
+                    return _parentMappingVisitor != null ? _parentMappingVisitor.Visit(node) : node;
 
                 if (propertyMap.CustomExpression != null)
                     return propertyMap.CustomExpression.ReplaceParameters(replacedExpression);
@@ -311,7 +338,7 @@ namespace AutoMapper.Mappers
                 if (sourceType == destType)
                     return MakeMemberAccess(baseExpression, node.Member);
                 var typeMap = _configurationProvider.FindTypeMapFor(sourceType, destType);
-                var subVisitor = new MappingVisitor(_configurationProvider, new Dictionary<TypeMap, IList<Tuple<Expression, Expression>>> { [typeMap] = new List<Tuple<Expression, Expression>> { new Tuple<Expression, Expression>(node.Expression, baseExpression)}}, this);
+                var subVisitor = new MappingVisitor(_configurationProvider, null, this, new Translation(typeMap, node.Expression, baseExpression));
                 var newExpression = subVisitor.Visit(node);
                 _destSubTypes = _destSubTypes.Concat(subVisitor._destSubTypes).ToArray();
                 return newExpression;
@@ -327,18 +354,12 @@ namespace AutoMapper.Mappers
 
             private PropertyMap PropertyMap(MemberExpression node)
             {
-                if (_dictionary.Keys.FirstOrDefault() == null)
-                    return null;
-
                 if (node.Member.IsStatic())
                     return null;
-
-                var memberAccessor = node.Member;
-
-                // in case of a propertypath, the MemberAcessors type and the SourceType may be different
-                foreach (var typeMap in _dictionary.Keys)
-                    if (memberAccessor.DeclaringType.IsAssignableFrom(typeMap.DestinationType))
-                        return typeMap.GetExistingPropertyMapFor(memberAccessor);
+                
+                foreach (var typeMap in _translations.Select(t => t.TypeMap))
+                    if (node.Member.DeclaringType.IsAssignableFrom(typeMap.DestinationType))
+                        return typeMap.GetExistingPropertyMapFor(node.Member);
                 
                 return null;
             }
